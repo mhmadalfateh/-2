@@ -20,19 +20,29 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Locate Android project
+      - name: Show project files
         run: |
-          echo "Searching for Android project..."
-          find . -maxdepth 4 \( -name "settings.gradle" -o -name "settings.gradle.kts" \)
+          pwd
+          ls -la
+          find . -maxdepth 4 -type f \( \
+            -name "settings.gradle" -o \
+            -name "settings.gradle.kts" -o \
+            -name "gradlew" \
+          \)
 
       - name: Build debug APK
         run: |
-          cd FatehMessenger
-          chmod +x gradlew 2>/dev/null || true
+          PROJECT_DIR="$(find . -maxdepth 4 -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit | xargs -r dirname)"
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: Android Gradle project not found."
+            exit 1
+          fi
+          cd "$PROJECT_DIR"
           gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: FatehMessenger-APK
-          path: FatehMessenger/app/build/outputs/apk/debug/*.apk
+          path: '**/build/outputs/apk/debug/*.apk'
+          if-no-files-found: error
