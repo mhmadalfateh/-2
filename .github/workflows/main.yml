@@ -2,9 +2,9 @@ name: Build Fateh Messenger APK
 
 on:
   workflow_dispatch:
-
-permissions:
-  contents: read
+  push:
+    branches:
+      - main
 
 jobs:
   build:
@@ -19,71 +19,20 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
       - name: Locate Android project
         run: |
-          sudo apt-get update
-          sudo apt-get install -y unzip
-
-          echo "Checking repository..."
-          ls -la
-
-          mkdir -p source
-
-          ZIP_FILE=$(find . -maxdepth 2 -type f -name "*.zip" | head -n 1)
-
-          if [ -n "$ZIP_FILE" ]; then
-            echo "Extracting $ZIP_FILE"
-            unzip -oq "$ZIP_FILE" -d source
-          else
-            cp -r app source/ 2>/dev/null || true
-            cp *.gradle.kts source/ 2>/dev/null || true
-            cp *.gradle source/ 2>/dev/null || true
-            cp gradle.properties source/ 2>/dev/null || true
-            cp settings.gradle.kts source/ 2>/dev/null || true
-            cp settings.gradle source/ 2>/dev/null || true
-            cp -r gradle source/ 2>/dev/null || true
-          fi
-
-          echo "Searching for Gradle wrapper..."
-          WRAPPER=$(find source -type f -name gradlew | head -n 1)
-
-          if [ -n "$WRAPPER" ]; then
-            PROJECT_DIR=$(dirname "$WRAPPER")
-            chmod +x "$WRAPPER"
-          else
-            echo "Gradle wrapper not found. Checking build files..."
-            PROJECT_DIR=$(find source -type f \
-              \( -name settings.gradle -o -name settings.gradle.kts \) \
-              -printf '%h\n' | head -n 1)
-
-            if [ -z "$PROJECT_DIR" ]; then
-              echo "ERROR: Android project files not found."
-              exit 1
-            fi
-          fi
-
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Searching for Android project..."
+          find . -maxdepth 4 \( -name "settings.gradle" -o -name "settings.gradle.kts" \)
 
       - name: Build debug APK
         run: |
-          cd "$PROJECT_DIR"
-
-          if [ -f "./gradlew" ]; then
-            chmod +x gradlew
-            ./gradlew assembleDebug --no-daemon
-          else
-            echo "ERROR: Gradle wrapper is missing."
-            echo "The project must include gradlew and gradle/wrapper files."
-            exit 1
-          fi
+          cd FatehMessenger
+          chmod +x gradlew 2>/dev/null || true
+          gradle assembleDebug
 
       - name: Upload APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: FatehMessenger-APK
-          path: |
-            **/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
+          path: FatehMessenger/app/build/outputs/apk/debug/*.apk
